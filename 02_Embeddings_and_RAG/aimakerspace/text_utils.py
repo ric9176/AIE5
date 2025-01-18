@@ -1,6 +1,46 @@
 import os
 from typing import List
 
+import pymupdf 
+
+class PDFFileLoader:
+    def __init__(self, path: str):
+        self.documents = []
+        self.path = path
+
+    def load(self):
+        if os.path.isdir(self.path):
+            self.load_directory()
+        elif os.path.isfile(self.path) and self.path.endswith(".pdf"):
+            self.load_file()
+        else:
+            raise ValueError(
+                "Provided path is neither a valid directory nor a .pdf file."
+            )
+
+    def load_file(self):
+        doc = pymupdf.open(self.path)
+        text = ""
+        for page in doc:
+            text += page.get_text()
+        self.documents.append(text)
+        doc.close()
+
+    def load_directory(self):
+        for root, _, files in os.walk(self.path):
+            for file in files:
+                if file.endswith(".pdf"):
+                    doc = fitz.open(os.path.join(root, file))
+                    text = ""
+                    for page in doc:
+                        text += page.get_text()
+                    self.documents.append(text)
+                    doc.close()
+
+    def load_documents(self):
+        self.load()
+        return self.documents
+
 
 class TextFileLoader:
     def __init__(self, path: str, encoding: str = "utf-8"):
@@ -36,6 +76,7 @@ class TextFileLoader:
         return self.documents
 
 
+
 class CharacterTextSplitter:
     def __init__(
         self,
@@ -52,7 +93,8 @@ class CharacterTextSplitter:
     def split(self, text: str) -> List[str]:
         chunks = []
         for i in range(0, len(text), self.chunk_size - self.chunk_overlap):
-            chunks.append(text[i : i + self.chunk_size])
+            chunk = text[i:i + self.chunk_size]
+            chunks.append(chunk)
         return chunks
 
     def split_texts(self, texts: List[str]) -> List[str]:
@@ -75,3 +117,4 @@ if __name__ == "__main__":
     print(chunks[-2])
     print("--------")
     print(chunks[-1])
+
