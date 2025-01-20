@@ -3,46 +3,7 @@ from typing import List
 
 import pymupdf 
 
-class PDFFileLoader:
-    def __init__(self, path: str):
-        self.documents = []
-        self.path = path
-
-    def load(self):
-        if os.path.isdir(self.path):
-            self.load_directory()
-        elif os.path.isfile(self.path) and self.path.endswith(".pdf"):
-            self.load_file()
-        else:
-            raise ValueError(
-                "Provided path is neither a valid directory nor a .pdf file."
-            )
-
-    def load_file(self):
-        doc = pymupdf.open(self.path)
-        text = ""
-        for page in doc:
-            text += page.get_text()
-        self.documents.append(text)
-        doc.close()
-
-    def load_directory(self):
-        for root, _, files in os.walk(self.path):
-            for file in files:
-                if file.endswith(".pdf"):
-                    doc = fitz.open(os.path.join(root, file))
-                    text = ""
-                    for page in doc:
-                        text += page.get_text()
-                    self.documents.append(text)
-                    doc.close()
-
-    def load_documents(self):
-        self.load()
-        return self.documents
-
-
-class TextFileLoader:
+class DocumentLoader:
     def __init__(self, path: str, encoding: str = "utf-8"):
         self.documents = []
         self.path = path
@@ -51,30 +12,47 @@ class TextFileLoader:
     def load(self):
         if os.path.isdir(self.path):
             self.load_directory()
-        elif os.path.isfile(self.path) and self.path.endswith(".txt"):
-            self.load_file()
+        elif os.path.isfile(self.path):
+            if self.path.endswith((".pdf", ".txt")):
+                self.load_file()
+            else:
+                raise ValueError("File must be either .pdf or .txt")
         else:
             raise ValueError(
-                "Provided path is neither a valid directory nor a .txt file."
+                "Provided path is neither a valid directory nor a supported file."
             )
 
     def load_file(self):
-        with open(self.path, "r", encoding=self.encoding) as f:
-            self.documents.append(f.read())
+        if self.path.endswith(".pdf"):
+            doc = pymupdf.open(self.path)
+            text = ""
+            for page in doc:
+                text += page.get_text()
+            self.documents.append(text)
+            doc.close()
+        else:  # .txt file
+            with open(self.path, "r", encoding=self.encoding) as f:
+                self.documents.append(f.read())
 
     def load_directory(self):
         for root, _, files in os.walk(self.path):
             for file in files:
-                if file.endswith(".txt"):
-                    with open(
-                        os.path.join(root, file), "r", encoding=self.encoding
-                    ) as f:
-                        self.documents.append(f.read())
+                if file.endswith((".pdf", ".txt")):
+                    file_path = os.path.join(root, file)
+                    if file.endswith(".pdf"):
+                        doc = pymupdf.open(file_path)
+                        text = ""
+                        for page in doc:
+                            text += page.get_text()
+                        self.documents.append(text)
+                        doc.close()
+                    else:  # .txt file
+                        with open(file_path, "r", encoding=self.encoding) as f:
+                            self.documents.append(f.read())
 
     def load_documents(self):
         self.load()
         return self.documents
-
 
 
 class CharacterTextSplitter:
@@ -105,7 +83,7 @@ class CharacterTextSplitter:
 
 
 if __name__ == "__main__":
-    loader = TextFileLoader("data/KingLear.txt")
+    loader = DocumentLoader("data/KingLear.txt")
     loader.load()
     splitter = CharacterTextSplitter()
     chunks = splitter.split_texts(loader.documents)
